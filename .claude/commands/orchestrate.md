@@ -39,10 +39,10 @@ If YES to all → Finalize and STOP
 
 1. **Create Detailed Plan with Delegation**
    - Break down user's task into phases and components
-   - Define explicit delegations:
-     - **Gemini**: What specifications/architecture to create
-     - **Claude**: What implementation/code to build
-     - **Codex**: What to validate/review
+   - Define explicit delegations based on agent capabilities:
+     - **Gemini** (--yolo, broad permissions): Specifications, architecture design, system planning, data models
+     - **Claude** (sandboxed, strict MCP): Implementation, code development, file modifications, integration
+     - **Codex** (review mode, bypass for analysis): Validation, code review, security audit, quality assessment
    - Document full approach, dependencies, sequencing
    - Update todo: `"Create plan with agent delegation"` → mark complete
 
@@ -115,15 +115,44 @@ When plan review is COMPLETE, begin implementation:
 - Finalize reports - in_progress
 ```
 
+## Agent Launch Commands
+
+**Gemini Agent** (Specification/Architecture):
+```bash
+gemini --yolo --output-format json \
+  --include-directories WORKSPACE \
+  --include-directories TARGET \
+  --include-directories /Users/ivg/github/orchestrator \
+  "TASK PROMPT" > WORKSPACE/gemini_stream.jsonl 2>&1 &
+```
+
+**Codex Agent** (Review/Validation):
+```bash
+codex exec --json \
+  --dangerously-bypass-approvals-and-sandbox \
+  --skip-git-repo-check \
+  -C TARGET \
+  "TASK PROMPT" > WORKSPACE/codex_stream.jsonl 2>&1 &
+```
+
+**Claude Agent** (Implementation):
+```bash
+claude --print \
+  --dangerously-skip-permissions \
+  --strict-mcp-config \
+  -C TARGET \
+  "TASK PROMPT" > WORKSPACE/claude_stream.jsonl 2>&1 &
+```
+
 ## Monitoring Actions (Every 60-Second Cycle)
 
 During each monitoring period, actively check EVERY 10 SECONDS:
 
 ```bash
 # Check agent outputs
-tail -20 gemini_output.jsonl
-tail -20 claude_output.jsonl
-tail -20 codex_output.jsonl
+tail -20 WORKSPACE/gemini_stream.jsonl
+tail -20 WORKSPACE/claude_stream.jsonl
+tail -20 WORKSPACE/codex_stream.jsonl
 
 # Parse new content
 # Check for completion signals
@@ -177,10 +206,10 @@ PHASE 1: PLANNING & REVIEW
 You: Creating detailed plan with delegations...
 Todo: Phase 1: Create plan with delegation - in_progress
 
-Plan:
-  - Gemini: API design spec, database schema, component architecture
-  - Claude: Backend (FastAPI), Frontend (React), WebSocket handler
-  - Codex: Architecture review, security validation, performance checks
+Plan (respecting agent capabilities):
+  - Gemini (specs/arch): API design spec, database schema, component architecture, data models
+  - Claude (implementation): Backend (FastAPI), Frontend (React), WebSocket handler, file integration
+  - Codex (review/validation): Architecture review, security validation, code quality, performance checks
 
 Todo: Phase 1: Create plan with delegation - completed
 Todo: Phase 1: Agents reviewing plan - in_progress
@@ -203,15 +232,33 @@ Todo: Phase 2: Launch agents with assignments - in_progress
 PHASE 2: IMPLEMENTATION & MONITORING
 =============================
 
-[Launch Gemini: "Create API/DB/component specs with Redis & GraphQL"]
-[Launch Claude: "Implement backend, frontend, WebSocket with auth middleware & heartbeat"]
-[Launch Codex: "Review all deliverables for security & performance"]
+You: Launching agents with implementation assignments...
+
+# Launch Gemini
+gemini --yolo --output-format json \
+  --include-directories /workspace/orch_20251121_120000 \
+  --include-directories /project/dashboard \
+  --include-directories /Users/ivg/github/orchestrator \
+  "Create API/DB/component specs with Redis & GraphQL" \
+  > /workspace/orch_20251121_120000/gemini_stream.jsonl 2>&1 &
+
+# Launch Claude
+claude --print --dangerously-skip-permissions \
+  -C /project/dashboard \
+  "Implement backend, frontend, WebSocket with auth middleware & heartbeat" \
+  > /workspace/orch_20251121_120000/claude_stream.jsonl 2>&1 &
+
+# Launch Codex
+codex exec --json --dangerously-bypass-approvals-and-sandbox \
+  --skip-git-repo-check -C /project/dashboard \
+  "Review all deliverables for security & performance" \
+  > /workspace/orch_20251121_120000/codex_stream.jsonl 2>&1 &
 
 Todo: Phase 2: Launch agents with assignments - completed
 Todo: Phase 2: Monitor agents for 60 seconds - in_progress
 
-[10 seconds later] Gemini: 3 specs generated
-[20 seconds later] Claude: Backend module stub complete
+[10 seconds] tail gemini_stream.jsonl → 3 specs generated
+[20 seconds] tail claude_stream.jsonl → Backend module stub complete
 [60 seconds total]
 Todo: Phase 2: Monitor agents for 60 seconds - completed
 Todo: Phase 2: Check if all finished - in_progress
@@ -234,22 +281,43 @@ Todo: Finalize reports - in_progress
 ORCHESTRATION COMPLETE.
 ```
 
+## Workspace Setup
+
+Before launching agents, create workspace:
+
+```bash
+# Create timestamped workspace
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+WORKSPACE="/Users/ivg/github/orchestrator/workspace/orch_${TIMESTAMP}"
+mkdir -p "$WORKSPACE"
+
+# Define target (where agents do actual work)
+TARGET="/Users/ivg/github/orchestrator"  # or user-specified project
+
+echo "Workspace: $WORKSPACE"
+echo "Target: $TARGET"
+```
+
 ## Start Immediately
 
 When this command is invoked, IMMEDIATELY:
 
+**PHASE 0 - WORKSPACE SETUP**
+1. Create timestamped workspace directory
+2. Set WORKSPACE and TARGET variables
+3. Create todo: `"Phase 1: Create plan with delegation"` - in_progress
+
 **PHASE 1 - PLANNING & REVIEW (REQUIRED FIRST)**
-1. Create todo: `"Phase 1: Create plan with delegation"` - in_progress
-2. Create detailed plan with explicit agent delegations (Gemini/Claude/Codex roles)
-3. Mark complete, create todo: `"Phase 1: Agents reviewing plan"` - in_progress
-4. Launch agents with plan review task (they must review and suggest improvements)
-5. Monitor agent feedback actively (10-second checks)
-6. Mark complete, create todo: `"Phase 1: Integrate suggestions"` - in_progress
-7. Update plan with all agent suggestions
-8. Mark complete, create todo: `"Phase 2: Launch agents with assignments"` - in_progress
+1. Create detailed plan with explicit agent delegations (Gemini/Claude/Codex roles)
+2. Mark complete, create todo: `"Phase 1: Agents reviewing plan"` - in_progress
+3. Launch agents with plan review task using proper commands (they must review and suggest improvements)
+4. Monitor agent feedback actively (10-second checks)
+5. Mark complete, create todo: `"Phase 1: Integrate suggestions"` - in_progress
+6. Update plan with all agent suggestions
+7. Mark complete, create todo: `"Phase 2: Launch agents with assignments"` - in_progress
 
 **PHASE 2 - IMPLEMENTATION & MONITORING (AFTER PHASE 1)**
-9. Launch agents with final implementation assignments
-10. Mark complete, create todo: `"Phase 2: Monitor agents for 60 seconds"` - in_progress
-11. Begin continuous 60-second monitoring cycles
-12. Do NOT stop until completion criteria fully met
+8. Launch agents with final implementation assignments using proper commands
+9. Mark complete, create todo: `"Phase 2: Monitor agents for 60 seconds"` - in_progress
+10. Begin continuous 60-second monitoring cycles with active output checking
+11. Do NOT stop until completion criteria fully met
