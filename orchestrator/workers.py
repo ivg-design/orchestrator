@@ -101,7 +101,7 @@ class WorkerProcess:
             "--add-dir", str(self.workspace_dir),
             "--add-dir", str(self.target_project_dir),
             "--add-dir", str(self.orchestrator_dir),
-            "--output-format", "json",
+            "--output-format", "stream-json",
             self.task
         ]
         return cmd
@@ -119,12 +119,17 @@ class WorkerProcess:
 
         # Launch process
         cmd = command_override or self.build_command()
+
+        # Gemini needs to start in user home directory for proper access
+        cwd = Path.home() if self.name == AgentName.GEMINI else None
+
         self.process = subprocess.Popen(
             cmd,
             stdout=self.output_file,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1  # Line buffered
+            bufsize=1,  # Line buffered
+            cwd=cwd
         )
 
         # Update state

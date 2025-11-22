@@ -119,6 +119,8 @@ When plan review is COMPLETE, begin implementation:
 
 **Gemini Agent** (Specification/Architecture):
 ```bash
+# Run from user home directory for proper access
+cd ~
 gemini --yolo --output-format json \
   --include-directories WORKSPACE \
   --include-directories TARGET \
@@ -140,7 +142,10 @@ codex exec --json \
 claude --print \
   --dangerously-skip-permissions \
   --strict-mcp-config \
-  -C TARGET \
+  --add-dir WORKSPACE \
+  --add-dir TARGET \
+  --add-dir /Users/ivg/github/orchestrator \
+  --output-format stream-json \
   "TASK PROMPT" > WORKSPACE/claude_stream.jsonl 2>&1 &
 ```
 
@@ -234,7 +239,8 @@ PHASE 2: IMPLEMENTATION & MONITORING
 
 You: Launching agents with implementation assignments...
 
-# Launch Gemini
+# Launch Gemini (from user home directory)
+cd ~
 gemini --yolo --output-format json \
   --include-directories /workspace/orch_20251121_120000 \
   --include-directories /project/dashboard \
@@ -242,9 +248,12 @@ gemini --yolo --output-format json \
   "Create API/DB/component specs with Redis & GraphQL" \
   > /workspace/orch_20251121_120000/gemini_stream.jsonl 2>&1 &
 
-# Launch Claude
-claude --print --dangerously-skip-permissions \
-  -C /project/dashboard \
+# Launch Claude (with stream-json for real-time output)
+claude --print --dangerously-skip-permissions --strict-mcp-config \
+  --add-dir /workspace/orch_20251121_120000 \
+  --add-dir /project/dashboard \
+  --add-dir /Users/ivg/github/orchestrator \
+  --output-format stream-json \
   "Implement backend, frontend, WebSocket with auth middleware & heartbeat" \
   > /workspace/orch_20251121_120000/claude_stream.jsonl 2>&1 &
 
