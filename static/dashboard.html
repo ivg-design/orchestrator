@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Orchestration Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #61dafb;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .session-info {
+            background: #1a1f3a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #61dafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-details h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #61dafb;
+        }
+
+        .session-details p {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #1a1f3a;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #61dafb;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #2a3f5f;
+            padding-bottom: 10px;
+        }
+
+        .worker-card {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #0f1729;
+            border-radius: 6px;
+            border-left: 4px solid #888;
+        }
+
+        .worker-card.running { border-left-color: #4caf50; }
+        .worker-card.completed { border-left-color: #2196f3; }
+        .worker-card.failed { border-left-color: #f44336; }
+        .worker-card.blocked { border-left-color: #ff9800; }
+
+        .worker-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #61dafb;
+        }
+
+        .worker-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .status-running { background: #4caf50; color: white; }
+        .status-idle { background: #888; color: white; }
+        .status-completed { background: #2196f3; color: white; }
+        .status-failed { background: #f44336; color: white; }
+        .status-blocked { background: #ff9800; color: white; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #0a0e27;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #61dafb, #4caf50);
+            transition: width 0.3s ease;
+        }
+
+        .event-log {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #0f1729;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .event-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #1a1f3a;
+            border-radius: 4px;
+            border-left: 3px solid #61dafb;
+        }
+
+        .event-time { color: #888; font-size: 0.85em; }
+        .event-type { color: #61dafb; font-weight: bold; margin: 0 5px; }
+
+        .review-panel {
+            background: #0f1729;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .review-item {
+            background: #1a1f3a;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-left: 3px solid #888;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .reviewer-name { font-weight: bold; color: #61dafb; }
+        .review-target { color: #aaa; font-size: 0.9em; }
+
+        .verdict {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        .verdict-approved { background: #4caf50; color: white; }
+        .verdict-concerns { background: #ff9800; color: white; }
+        .verdict-blocker { background: #f44336; color: white; }
+
+        .review-content {
+            font-size: 0.95em;
+            line-height: 1.4;
+            color: #ddd;
+            white-space: pre-wrap;
+        }
+
+        .decision-panel {
+            background: #0f1729;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #61dafb;
+        }
+
+        .decision-action {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .action-continue { color: #4caf50; }
+        .action-warning { color: #ff9800; }
+        .action-pause { color: #ff9800; }
+        .action-stop { color: #f44336; }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary { background: #61dafb; color: #0a0e27; }
+        .btn-warning { background: #ff9800; color: white; }
+        .btn-danger { background: #f44336; color: white; }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.active { background: #4caf50; animation: pulse 2s infinite; }
+        .status-indicator.inactive { background: #888; }
+        .status-indicator.error { background: #f44336; }
+
+        /* Toast Notification */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: #1a1f3a;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid #61dafb;
+        }
+
+        .toast.error { border-left-color: #f44336; }
+        .toast.success { border-left-color: #4caf50; }
+        .toast.warning { border-left-color: #ff9800; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0e27; }
+        ::-webkit-scrollbar-thumb { background: #61dafb; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Meta-Orchestration Dashboard</h1>
+
+        <div class="session-info">
+            <div class="session-details">
+                <h2>Session Information</h2>
+                <p><strong>Session ID:</strong> <span id="session-id">Loading...</span></p>
+                <p><strong>User Prompt:</strong> <span id="user-prompt">Loading...</span></p>
+                <p><strong>Status:</strong>
+                    <span class="status-indicator" id="status-indicator"></span>
+                    <span id="session-status">Loading...</span>
+                </p>
+            </div>
+            <div class="controls">
+                <button class="btn-primary" onclick="triggerReview()" id="btn-review">Trigger Review</button>
+                <button class="btn-warning" onclick="pauseOrchestration()" id="btn-pause">Pause</button>
+                <button class="btn-primary" onclick="resumeOrchestration()" id="btn-resume" style="display:none;">Resume</button>
+                <button class="btn-danger" onclick="stopOrchestration()" id="btn-stop">Stop</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Worker Agents</h2>
+                <div id="workers-container">
+                    <p>Loading workers...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Latest Decision</h2>
+                <div id="decision-container" class="decision-panel">
+                    <p>Waiting for decisions...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Peer Reviews</h2>
+            <div id="reviews-container" class="review-panel">
+                <p>No reviews yet...</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Event Log</h2>
+            <div id="event-log" class="event-log">
+                <div class="event-item">
+                    <span class="event-time">[System]</span>
+                    <span class="event-type">INFO</span>
+                    Dashboard initialized
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        let eventSource = null;
+        let currentSessionId = null;
+        let connectionRetries = 0;
+
+        // Get session ID from URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionParam = urlParams.get('session');
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 5000);
+        }
+
+        function initEventStream() {
+            const url = sessionParam 
+                ? `/api/events/stream?session=${sessionParam}`
+                : '/api/events/stream';
+
+            if (eventSource) eventSource.close();
+
+            eventSource = new EventSource(url);
+
+            eventSource.onopen = function() {
+                document.getElementById('status-indicator').classList.remove('error');
+                if (connectionRetries > 0) {
+                    showToast('Reconnected to server', 'success');
+                }
+                connectionRetries = 0;
+            };
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleEvent(data);
+                } catch (e) {
+                    console.error('Error parsing event:', e);
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('SSE error:', error);
+                document.getElementById('status-indicator').classList.add('error');
+                
+                if (connectionRetries === 0) {
+                    showToast('Lost connection to server. Retrying...', 'error');
+                }
+                
+                connectionRetries++;
+                eventSource.close();
+                setTimeout(initEventStream, Math.min(5000 * connectionRetries, 30000));
+            };
+        }
+
+        function handleEvent(data) {
+            if (data.type === 'workers_update') {
+                updateWorkers(data.data);
+            } else if (data.type === 'decision_update') {
+                updateDecision(data.data);
+            } else if (data.type === 'status_update') {
+                updateStatus(data.data);
+            } else if (data.type === 'review_update') {
+                loadReviews(); // Refresh reviews on update
+            } else if (data.type === 'log') {
+                addEventLog(data.level || 'INFO', data.message);
+            }
+        }
+
+        function updateWorkers(workers) {
+            const container = document.getElementById('workers-container');
+            container.innerHTML = '';
+
+            if (Object.keys(workers).length === 0) {
+                container.innerHTML = '<p>No active workers found.</p>';
+                return;
+            }
+
+            for (const [name, state] of Object.entries(workers)) {
+                const card = document.createElement('div');
+                card.className = `worker-card ${state.status}`;
+
+                const progress = state.progress || 0;
+                
+                card.innerHTML = `
+                    <div class="worker-name">${name.toUpperCase()}</div>
+                    <span class="worker-status status-${state.status}">${state.status.toUpperCase()}</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                    <div style="font-size: 0.9em; color: #888; display: flex; justify-content: space-between;">
+                        <span>Progress: ${progress}%</span>
+                        <span>${state.current_task || ''}</span>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            }
+        }
+
+        function updateDecision(decision) {
+            if (!decision) return;
+            
+            const container = document.getElementById('decision-container');
+            const actionClass = (decision.action || 'UNKNOWN').toLowerCase().replace('_', '-');
+
+            container.innerHTML = `
+                <div class="decision-action action-${actionClass}">${decision.action || 'PENDING'}</div>
+                <div style="margin-bottom: 8px;"><strong>Reason:</strong> ${decision.reason || 'No reason provided'}</div>
+                <div><strong>Next Steps:</strong> ${decision.next_steps || 'Waiting for next cycle...'}</div>
+            `;
+        }
+
+        function updateStatus(status) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('session-status');
+            const btnPause = document.getElementById('btn-pause');
+            const btnResume = document.getElementById('btn-resume');
+
+            // Update UI controls based on state
+            if (status.is_paused) {
+                indicator.className = 'status-indicator inactive';
+                statusText.textContent = 'Paused';
+                btnPause.style.display = 'none';
+                btnResume.style.display = 'inline-block';
+            } else if (status.is_running) {
+                indicator.className = 'status-indicator active';
+                statusText.textContent = 'Running';
+                btnPause.style.display = 'inline-block';
+                btnResume.style.display = 'none';
+            } else if (status.is_complete) {
+                indicator.className = 'status-indicator inactive';
+                statusText.textContent = 'Complete';
+                btnPause.disabled = true;
+                btnResume.disabled = true;
+            } else {
+                indicator.className = 'status-indicator inactive';
+                statusText.textContent = 'Idle';
+            }
+        }
+
+        function renderReviews(reviews) {
+            const container = document.getElementById('reviews-container');
+            container.innerHTML = '';
+
+            if (!reviews || reviews.length === 0) {
+                container.innerHTML = '<p>No reviews yet...</p>';
+                return;
+            }
+
+            reviews.forEach(review => {
+                const item = document.createElement('div');
+                item.className = 'review-item';
+                
+                let verdictClass = 'verdict-approved';
+                if (review.verdict === 'CONCERNS') verdictClass = 'verdict-concerns';
+                if (review.verdict === 'BLOCKER') verdictClass = 'verdict-blocker';
+                
+                item.style.borderLeftColor = review.verdict === 'APPROVED' ? '#4caf50' : (review.verdict === 'BLOCKER' ? '#f44336' : '#ff9800');
+
+                item.innerHTML = `
+                    <div class="review-header">
+                        <span class="reviewer-name">${review.reviewer} → ${review.target}</span>
+                        <span class="verdict ${verdictClass}">${review.verdict}</span>
+                    </div>
+                    <div class="review-content">${review.content}</div>
+                    <div style="margin-top: 5px; font-size: 0.8em; color: #666;">${new Date(review.timestamp).toLocaleString()}</div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addEventLog(type, message) {
+            const log = document.getElementById('event-log');
+            const time = new Date().toLocaleTimeString();
+
+            const item = document.createElement('div');
+            item.className = 'event-item';
+            item.innerHTML = `
+                <span class="event-time">[${time}]</span>
+                <span class="event-type">${type}</span>
+                ${message}
+            `;
+
+            log.insertBefore(item, log.firstChild);
+
+            while (log.children.length > 100) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        async function loadSessionInfo() {
+            try {
+                const url = sessionParam 
+                    ? `/api/session?session=${sessionParam}` 
+                    : '/api/session';
+                    
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.error) {
+                    currentSessionId = data.session_id;
+                    document.getElementById('session-id').textContent = data.session_id;
+                    document.getElementById('user-prompt').textContent = data.user_prompt || 'No prompt found';
+                    
+                    // Initial status update
+                    if (data.status) {
+                        updateStatus(data.status);
+                    }
+                } else {
+                    showToast('Failed to load session info: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading session:', error);
+                showToast('Error loading session info', 'error');
+            }
+        }
+
+        async function loadReviews() {
+            try {
+                const url = currentSessionId 
+                    ? `/api/reviews?session=${currentSessionId}` 
+                    : '/api/reviews';
+                    
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.reviews) {
+                    renderReviews(data.reviews);
+                }
+            } catch (error) {
+                console.error('Error loading reviews:', error);
+            }
+        }
+
+        async function triggerReview() {
+            if (!currentSessionId) return;
+            try {
+                await fetch(`/api/control/review?session=${currentSessionId}`, { method: 'POST' });
+                showToast('Manual review triggered', 'success');
+            } catch (error) {
+                showToast('Error triggering review', 'error');
+            }
+        }
+
+        async function pauseOrchestration() {
+            if (!currentSessionId) return;
+            try {
+                await fetch(`/api/control/pause?session=${currentSessionId}`, { method: 'POST' });
+                showToast('Orchestration paused', 'warning');
+            } catch (error) {
+                showToast('Error pausing', 'error');
+            }
+        }
+
+        async function resumeOrchestration() {
+            if (!currentSessionId) return;
+            try {
+                await fetch(`/api/control/resume?session=${currentSessionId}`, { method: 'POST' });
+                showToast('Orchestration resumed', 'success');
+            } catch (error) {
+                showToast('Error resuming', 'error');
+            }
+        }
+
+        async function stopOrchestration() {
+            if (!currentSessionId) return;
+            if (!confirm('Are you sure you want to stop? This cannot be undone.')) return;
+            
+            try {
+                await fetch(`/api/control/stop?session=${currentSessionId}`, { method: 'POST' });
+                showToast('Orchestration stopped', 'error');
+            } catch (error) {
+                showToast('Error stopping', 'error');
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            loadSessionInfo().then(() => {
+                loadReviews();
+                initEventStream();
+            });
+            
+            // Poll reviews every 10s as backup to SSE
+            setInterval(loadReviews, 10000);
+        });
+    </script>
+</body>
+</html>
